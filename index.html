@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D.C.C.F - Clube de Detetives</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background-color: #121826; color: #e2e8f0; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .card { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #b7791f; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .text-logo { font-family: 'Georgia', serif; font-size: 3.5em; font-weight: bold; color: #ecc94b; text-shadow: 3px 3px 6px rgba(0,0,0,0.8); margin-bottom: 10px; letter-spacing: 4px; }
+        h1, h2, h3 { color: #ecc94b; margin: 10px 0; }
+        .motto { font-style: italic; color: #94a3b8; margin-bottom: 20px; }
+        input, textarea, button { width: 90%; margin: 8px 0; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: white; font-family: inherit; }
+        button { background: #b7791f; color: #0f172a; font-weight: bold; cursor: pointer; border: none; text-transform: uppercase; }
+        button:hover { background: #d69e2e; }
+        .hidden { display: none; }
+        .post { background: #334155; padding: 15px; margin: 10px 0; border-left: 5px solid #ecc94b; text-align: left; position: relative; border-radius: 4px; }
+        .delete-btn { position: absolute; right: 10px; top: 10px; background: #ef4444; color: white; border: none; padding: 5px 10px; cursor: pointer; width: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="container">
+        <div class="card">
+            <div class="text-logo">D.C.C.F.</div>
+            <h2>Acesso Restrito</h2>
+            <input type="password" id="password-input" placeholder="Digite a senha (dccf)...">
+            <button onclick="checkPassword()">Entrar no QG</button>
+        </div>
+    </div>
+
+    <!-- PAINEL PRINCIPAL -->
+    <div id="main-content" class="container hidden">
+        <div class="text-logo">D.C.C.F.</div>
+        <p><strong>D</strong>etetives | <strong>C</strong>abo | <strong>C</strong>asa | <strong>F</strong>rio</p>
+        <p class="motto">"Observamos. Pensamos. Descobrimos. Juntas, sempre!"</p>
+
+        <!-- Formulário -->
+        <div class="card">
+            <h3>Nova Operação / Pista</h3>
+            <input type="text" id="title-input" placeholder="Nome da Operação">
+            <input type="text" id="agents-input" placeholder="Nome dos agentes envolvidos">
+            <input type="date" id="date-input">
+            <textarea id="content-input" placeholder="Relatório do caso..."></textarea>
+            <button onclick="addPost()">Registrar no Arquivo</button>
+        </div>
+
+        <!-- Feed -->
+        <h2>Arquivos Confidenciais</h2>
+        <div id="posts-container"></div>
+    </div>
+
+    <script>
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            if (input === 'dccf') {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                loadPosts();
+            } else {
+                alert('Senha incorreta. Acesso negado.');
+            }
+        }
+
+        function loadPosts() {
+            const container = document.getElementById('posts-container');
+            container.innerHTML = '';
+            const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
+            
+            posts.forEach((post, index) => {
+                const postDiv = document.createElement('div');
+                postDiv.className = 'post';
+                postDiv.innerHTML = `
+                    <strong style="color: #ecc94b;">${post.title}</strong> - <small>${post.date}</small><br>
+                    <small style="color: #94a3b8;">Agentes: ${post.agents}</small><br><br>
+                    <div>${post.content}</div>
+                    <button class="delete-btn" onclick="deletePost(${index})">Apagar</button>
+                `;
+                container.appendChild(postDiv);
+            });
+        }
+
+        function addPost() {
+            const title = document.getElementById('title-input').value;
+            const agents = document.getElementById('agents-input').value;
+            const date = document.getElementById('date-input').value;
+            const content = document.getElementById('content-input').value;
+
+            if (!title || !agents || !content) return alert('Preencha a operação, agentes e o relatório!');
+
+            const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
+            posts.push({ title, agents, date, content });
+            localStorage.setItem('dccf_posts', JSON.stringify(posts));
+
+            document.getElementById('title-input').value = '';
+            document.getElementById('agents-input').value = '';
+            document.getElementById('date-input').value = '';
+            document.getElementById('content-input').value = '';
+            loadPosts();
+        }
+
+        function deletePost(index) {
+            if(confirm("Tem certeza que deseja apagar este arquivo?")) {
+                const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
+                posts.splice(index, 1);
+                localStorage.setItem('dccf_posts', JSON.stringify(posts));
+                loadPosts();
+            }
+        }
+    </script>
+</body>
+</html>
