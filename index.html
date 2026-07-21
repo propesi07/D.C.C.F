@@ -17,96 +17,147 @@
         .hidden { display: none; }
         .post { background: #334155; padding: 15px; margin: 10px 0; border-left: 5px solid #ecc94b; text-align: left; position: relative; border-radius: 4px; }
         .delete-btn { position: absolute; right: 10px; top: 10px; background: #ef4444; color: white; border: none; padding: 5px 10px; cursor: pointer; width: auto; font-size: 12px; }
+        .agent-badge { background: #b7791f; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <!-- TELA DE LOGIN -->
+    <!-- TELA DE LOGIN DO AGENTE -->
     <div id="login-screen" class="container">
         <div class="card">
             <div class="text-logo">D.C.C.F.</div>
-            <h2>Acesso Restrito</h2>
-            <input type="password" id="password-input" placeholder="Digite a senha (dccf)...">
-            <button onclick="checkPassword()">Entrar no QG</button>
+            <h2>Identificação do Agente</h2>
+            <input type="text" id="agent-name-input" placeholder="Seu Nome / Codinome de Agente">
+            <input type="password" id="password-input" placeholder="Senha secreta do clube (dccf)...">
+            <button onclick="login()">Entrar no QG</button>
         </div>
     </div>
 
     <!-- PAINEL PRINCIPAL -->
     <div id="main-content" class="container hidden">
         <div class="text-logo">D.C.C.F.</div>
-        <p><strong>D</strong>etetives | <strong>C</strong>abo | <strong>C</strong>asa | <strong>F</strong>rio</p>
-        <p class="motto">"Observamos. Pensamos. Descobrimos. Juntas, sempre!"</p>
+        <p><strong>D</strong>etetives | <strong>C</strong>asa | <strong>C</strong>abo | <strong>F</strong>rio</p>
+        <p class="motto">"Observamos. Pensamos. Descobrimos. Juntos, sempre!"</p>
+        <p style="color: #ecc94b;">Conectado como: <span id="current-agent-display" class="agent-badge"></span></p>
 
         <!-- Formulário -->
         <div class="card">
-            <h3>Nova Operação / Pista</h3>
+            <h3>Nova Operação / Relatório</h3>
             <input type="text" id="title-input" placeholder="Nome da Operação">
-            <input type="text" id="agents-input" placeholder="Nome dos agentes envolvidos">
+            <input type="text" id="agents-input" placeholder="Agentes envolvidos">
             <input type="date" id="date-input">
-            <textarea id="content-input" placeholder="Relatório do caso..."></textarea>
-            <button onclick="addPost()">Registrar no Arquivo</button>
+            <textarea id="content-input" placeholder="Escreva a mensagem ou relatório do caso..."></textarea>
+            <button onclick="addPost()">Enviar para o QG</button>
         </div>
 
         <!-- Feed -->
         <h2>Arquivos Confidenciais</h2>
-        <div id="posts-container"></div>
+        <div id="posts-container">Carregando mensagens do QG...</div>
     </div>
 
     <script>
-        function checkPassword() {
-            const input = document.getElementById('password-input').value;
-            if (input === 'dccf') {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-content').classList.remove('hidden');
-                loadPosts();
-            } else {
-                alert('Senha incorreta. Acesso negado.');
+        const DB_URL = "https://kvdb.io/DCCF_Clube_Detetives_2026_QG/posts";
+        let currentAgent = "";
+
+        function login() {
+            const name = document.getElementById('agent-name-input').value.trim();
+            const pass = document.getElementById('password-input').value.trim();
+
+            if (!name) return alert('Por favor, digite seu nome de agente!');
+            if (pass !== 'dccf') return alert('Senha incorreta! Acesso negado.');
+
+            currentAgent = name;
+            document.getElementById('current-agent-display').innerText = currentAgent;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+
+            loadPosts();
+            setInterval(loadPosts, 3000);
+        }
+
+        async function loadPosts() {
+            try {
+                const response = await fetch(DB_URL);
+                const posts = response.ok ? await response.json() : [];
+                
+                const container = document.getElementById('posts-container');
+                container.innerHTML = '';
+
+                if (posts.length === 0) {
+                    container.innerHTML = '<p style="color: #94a3b8;">Nenhuma operação registrada ainda.</p>';
+                    return;
+                }
+
+                posts.reverse().forEach((post, index) => {
+                    const originalIndex = posts.length - 1 - index;
+                    const postDiv = document.createElement('div');
+                    postDiv.className = 'post';
+                    postDiv.innerHTML = `
+                        <strong style="color: #ecc94b;">${post.title}</strong> - <small>${post.date || 'Sem data'}</small><br>
+                        <small style="color: #94a3b8;">Postado por: <span class="agent-badge">${post.agent}</span> | Agentes: ${post.agents || 'Não informado'}</small><br><br>
+                        <div>${post.content}</div>
+                        <button class="delete-btn" onclick="deletePost(${originalIndex})">Apagar</button>
+                    `;
+                    container.appendChild(postDiv);
+                });
+            } catch (e) {
+                console.log("Aguardando novas mensagens...");
             }
         }
 
-        function loadPosts() {
-            const container = document.getElementById('posts-container');
-            container.innerHTML = '';
-            const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
-            
-            posts.forEach((post, index) => {
-                const postDiv = document.createElement('div');
-                postDiv.className = 'post';
-                postDiv.innerHTML = `
-                    <strong style="color: #ecc94b;">${post.title}</strong> - <small>${post.date}</small><br>
-                    <small style="color: #94a3b8;">Agentes: ${post.agents}</small><br><br>
-                    <div>${post.content}</div>
-                    <button class="delete-btn" onclick="deletePost(${index})">Apagar</button>
-                `;
-                container.appendChild(postDiv);
-            });
-        }
-
-        function addPost() {
+        async function addPost() {
             const title = document.getElementById('title-input').value;
             const agents = document.getElementById('agents-input').value;
             const date = document.getElementById('date-input').value;
             const content = document.getElementById('content-input').value;
 
-            if (!title || !agents || !content) return alert('Preencha a operação, agentes e o relatório!');
+            if (!title || !content) return alert('Preencha a operação e o relatório!');
 
-            const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
-            posts.push({ title, agents, date, content });
-            localStorage.setItem('dccf_posts', JSON.stringify(posts));
+            try {
+                const response = await fetch(DB_URL);
+                const posts = response.ok ? await response.json() : [];
 
-            document.getElementById('title-input').value = '';
-            document.getElementById('agents-input').value = '';
-            document.getElementById('date-input').value = '';
-            document.getElementById('content-input').value = '';
-            loadPosts();
+                posts.push({
+                    title: title,
+                    agent: currentAgent,
+                    agents: agents,
+                    date: date,
+                    content: content
+                });
+
+                await fetch(DB_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(posts)
+                });
+
+                document.getElementById('title-input').value = '';
+                document.getElementById('agents-input').value = '';
+                document.getElementById('date-input').value = '';
+                document.getElementById('content-input').value = '';
+                loadPosts();
+            } catch (e) {
+                alert("Erro ao enviar mensagem. Tente novamente!");
+            }
         }
 
-        function deletePost(index) {
-            if(confirm("Tem certeza que deseja apagar este arquivo?")) {
-                const posts = JSON.parse(localStorage.getItem('dccf_posts')) || [];
-                posts.splice(index, 1);
-                localStorage.setItem('dccf_posts', JSON.stringify(posts));
-                loadPosts();
+        async function deletePost(index) {
+            if (confirm("Tem certeza que deseja apagar este relatório?")) {
+                try {
+                    const response = await fetch(DB_URL);
+                    let posts = response.ok ? await response.json() : [];
+                    posts.splice(index, 1);
+
+                    await fetch(DB_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(posts)
+                    });
+
+                    loadPosts();
+                } catch (e) {
+                    alert("Erro ao apagar postagem.");
+                }
             }
         }
     </script>
